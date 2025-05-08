@@ -1,20 +1,21 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+// App.js
+import React from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import AppNavigator from './app/AppNavigator';
+import { useFonts } from 'expo-font';
+import ThemeProvider from './app/contexts/ThemeContext';
 
 export default function App() {
-  return (
-    <View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
-  );
-}
+    const [fontsLoaded] = useFonts({
+        OpenDyslexic: require('./assets/fonts/OpenDyslexic-Regular.otf'),
+    });
+    if (!fontsLoaded) return null;
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+    return (
+        <ThemeProvider>
+            <NavigationContainer>
+                <AppNavigator />
+            </NavigationContainer>
+        </ThemeProvider>
+    );
+}
