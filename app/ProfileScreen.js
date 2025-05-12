@@ -1,94 +1,128 @@
-// app/ProfileScreen.js
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-    View, Text, StyleSheet, Button, ActivityIndicator, ScrollView
+    View,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    StyleSheet,
+    Alert,
+    ScrollView
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
 import AppBackground from './components/AppBackground';
 import { useTheme } from './contexts/ThemeContext';
 
-const API_URL = 'http://192.168.0.127:3000';
-
 export default function ProfileScreen({ navigation }) {
-    const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true);
     const { dyslexiaMode } = useTheme();
     const fontFamily = dyslexiaMode ? 'OpenDyslexic' : 'System';
 
+    const [profile, setProfile] = useState({
+        username: '',
+        age: '',
+        weight: '',
+        gender: '',
+        activity_level: ''
+    });
+
     useEffect(() => {
-        const fetchUser = async () => {
-            const token = await AsyncStorage.getItem('authToken');
+        const loadProfile = async () => {
             try {
-                const res = await axios.get(`${API_URL}/api/v1/me`, {
-                    headers: { Authorization: token }
+                const res = await fetch("https://your-api.com/api/v1/me", {
+                    headers: { Authorization: `Bearer ${authToken}` }
                 });
-                setUser(res.data);
-            } catch (error) {
-                console.error(error);
-            } finally {
-                setLoading(false);
+                const json = await res.json();
+                if (res.ok) setProfile(json);
+                else Alert.alert("Error", json.error || "Could not load profile.");
+            } catch (err) {
+                console.error(err);
+                Alert.alert("Error", "Failed to fetch profile.");
             }
         };
 
-        fetchUser();
+        loadProfile();
     }, []);
 
-    if (loading) {
-        return (
-            <AppBackground>
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#2a9d8f" />
-                </View>
-            </AppBackground>
-        );
-    }
+    const handleChange = (key, value) => {
+        setProfile(prev => ({ ...prev, [key]: value }));
+    };
+
+    const handleSave = async () => {
+        try {
+            const res = await fetch("https://your-api.com/api/v1/me", {
+                method: "PUT",
+                headers: {
+                    Authorization: `Bearer ${authToken}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(profile)
+            });
+
+            const json = await res.json();
+
+            if (res.ok) {
+                Alert.alert("Saved", "Your profile has been updated.");
+                navigation.goBack();
+            } else {
+                Alert.alert("Error", json.error || "Could not update profile.");
+            }
+        } catch (err) {
+            console.error(err);
+            Alert.alert("Error", "Something went wrong.");
+        }
+    };
 
     return (
         <AppBackground>
             <ScrollView contentContainerStyle={styles.container}>
-                <Text style={[styles.title, { fontFamily }]}>👤 Your Profile</Text>
+                <Text style={[styles.title, { fontFamily }]}>Edit Profile</Text>
 
-                <View style={styles.card}>
-                    <Text style={[styles.item, { fontFamily }]}>Email: {user?.email}</Text>
-                    <Text style={[styles.item, { fontFamily }]}>Age: {user?.age}</Text>
-                    <Text style={[styles.item, { fontFamily }]}>Height: {user?.height} cm</Text>
-                    <Text style={[styles.item, { fontFamily }]}>Weight: {user?.weight} kg</Text>
-                    <Text style={[styles.item, { fontFamily }]}>Gender: {user?.gender}</Text>
-                    <Text style={[styles.item, { fontFamily }]}>Activity: {user?.activity_level}</Text>
-                    <Text style={[styles.item, { fontFamily }]}>Goal: {user?.goal}</Text>
-                </View>
+                {["username", "age", "weight", "gender", "activity_level"].map((field) => (
+                    <TextInput
+                        key={field}
+                        placeholder={field.replace('_', ' ').toUpperCase()}
+                        value={profile[field]}
+                        onChangeText={(text) => handleChange(field, text)}
+                        style={[styles.input, { fontFamily }]}
+                    />
+                ))}
 
-                <Button title="✏️ Edit Profile" onPress={() => navigation.navigate('ProfileSetup')} />
+                <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+                    <Text style={[styles.buttonText, { fontFamily }]}>Save Changes</Text>
+                </TouchableOpacity>
             </ScrollView>
         </AppBackground>
     );
 }
 
 const styles = StyleSheet.create({
-    loadingContainer: {
-        flex: 1,
+    container: {
+        padding: 24,
         justifyContent: 'center',
         alignItems: 'center'
     },
-    container: {
-        padding: 24,
-        flexGrow: 1
-    },
     title: {
-        fontSize: 26,
+        fontSize: 24,
+        color: '#fff',
         fontWeight: 'bold',
-        marginBottom: 20
+        marginBottom: 24
     },
-    card: {
-        backgroundColor: '#ffffffaa',
-        borderRadius: 12,
-        padding: 20,
-        marginBottom: 20,
-        elevation: 2
+    input: {
+        width: '100%',
+        backgroundColor: '#fff',
+        padding: 12,
+        borderRadius: 10,
+        marginBottom: 12
     },
-    item: {
+    saveButton: {
+        backgroundColor: '#fff',
+        padding: 14,
+        borderRadius: 10,
+        marginTop: 16,
+        alignItems: 'center',
+        width: '100%'
+    },
+    buttonText: {
+        color: '#333',
         fontSize: 16,
-        marginBottom: 8
+        fontWeight: 'bold'
     }
 });

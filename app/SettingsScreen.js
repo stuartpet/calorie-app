@@ -1,43 +1,77 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useState, useContext } from 'react';
+import {
+    View,
+    Text,
+    TextInput,
+    Switch,
+    StyleSheet,
+    TouchableOpacity,
+    Alert,
+    ScrollView
+} from 'react-native';
 import AppBackground from './components/AppBackground';
 import { useTheme } from './contexts/ThemeContext';
 
 export default function SettingsScreen({ navigation }) {
-    const { dyslexiaMode, toggleDyslexia } = useTheme();
+    const { dyslexiaMode, toggleDyslexiaMode } = useTheme();
+    const fontFamily = dyslexiaMode ? 'OpenDyslexic' : 'System';
 
-    const handleLogout = async () => {
-        await AsyncStorage.removeItem('authToken');
-        Alert.alert('👋 Logged out');
-        navigation.reset({
-            index: 0,
-            routes: [{ name: 'Login' }],
-        });
+    const [settings, setSettings] = useState({
+        calorieGoal: '2200',
+        age: '30',
+        weight: '70',
+        gender: 'male',
+        activity: 'moderate'
+    });
+
+    const handleChange = (key, value) => {
+        setSettings((prev) => ({ ...prev, [key]: value }));
+    };
+
+    const handleSave = () => {
+        // TODO: Send to backend
+        Alert.alert("Saved", "Your settings have been updated.");
+    };
+
+    const handleLogout = () => {
+        // TODO: Clear token and redirect to login
+        Alert.alert("Logged out");
     };
 
     return (
         <AppBackground>
-            <View style={styles.container}>
-                <Text style={styles.title}>⚙️ Settings</Text>
+            <ScrollView contentContainerStyle={styles.container}>
+                <Text style={[styles.title, { fontFamily }]}>Settings</Text>
 
-                <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('ProfileSetup')}>
-                    <Text style={styles.buttonText}>Edit Profile</Text>
+                <View style={styles.section}>
+                    <Text style={[styles.label, { fontFamily }]}>Dyslexia Mode</Text>
+                    <Switch
+                        value={dyslexiaMode}
+                        onValueChange={toggleDyslexiaMode}
+                        thumbColor="#fff"
+                    />
+                </View>
+
+                <Text style={[styles.subtitle, { fontFamily }]}>Profile Info</Text>
+
+                {["calorieGoal", "age", "weight", "gender", "activity"].map((field) => (
+                    <TextInput
+                        key={field}
+                        placeholder={field.charAt(0).toUpperCase() + field.slice(1)}
+                        value={settings[field]}
+                        onChangeText={(text) => handleChange(field, text)}
+                        style={[styles.input, { fontFamily }]}
+                    />
+                ))}
+
+                <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+                    <Text style={[styles.buttonText, { fontFamily }]}>Save Settings</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={[styles.button, { backgroundColor: '#f94144' }]} onPress={handleLogout}>
-                    <Text style={styles.buttonText}>Log Out</Text>
+                <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+                    <Text style={[styles.logoutText, { fontFamily }]}>Log Out</Text>
                 </TouchableOpacity>
-
-                <TouchableOpacity
-                    style={[styles.button, { backgroundColor: dyslexiaMode ? '#6c757d' : '#2a9d8f' }]}
-                    onPress={toggleDyslexia}
-                >
-                    <Text style={styles.buttonText}>
-                        {dyslexiaMode ? 'Disable Dyslexia Mode' : 'Enable Dyslexia Mode'}
-                    </Text>
-                </TouchableOpacity>
-            </View>
+            </ScrollView>
         </AppBackground>
     );
 }
@@ -45,26 +79,59 @@ export default function SettingsScreen({ navigation }) {
 const styles = StyleSheet.create({
     container: {
         padding: 24,
-        flex: 1,
-        justifyContent: 'center',
+        alignItems: 'center',
+        justifyContent: 'flex-start'
     },
     title: {
-        fontSize: 26,
+        fontSize: 24,
         fontWeight: 'bold',
         color: '#fff',
-        marginBottom: 40,
-        textAlign: 'center',
+        marginBottom: 24
     },
-    button: {
-        backgroundColor: '#34a0a4',
-        padding: 16,
-        borderRadius: 10,
-        marginBottom: 20,
+    section: {
+        flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'space-between',
+        width: '100%',
+        marginBottom: 20
+    },
+    label: {
+        fontSize: 18,
+        color: '#fff'
+    },
+    subtitle: {
+        fontSize: 20,
+        color: '#fff',
+        marginBottom: 10,
+        alignSelf: 'flex-start'
+    },
+    input: {
+        width: '100%',
+        backgroundColor: '#fff',
+        borderRadius: 8,
+        padding: 10,
+        marginBottom: 12
+    },
+    saveButton: {
+        marginTop: 20,
+        backgroundColor: '#fff',
+        padding: 14,
+        borderRadius: 10,
+        alignItems: 'center',
+        width: '100%'
     },
     buttonText: {
-        color: '#fff',
-        fontWeight: '600',
         fontSize: 16,
+        fontWeight: 'bold',
+        color: '#333'
     },
+    logoutButton: {
+        marginTop: 30,
+        alignItems: 'center'
+    },
+    logoutText: {
+        fontSize: 16,
+        color: '#fff',
+        textDecorationLine: 'underline'
+    }
 });

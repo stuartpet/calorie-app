@@ -40,13 +40,41 @@ export default function PhotoMealScreen({ navigation }) {
         if (!imageUri) return Alert.alert('No image selected');
 
         setLoading(true);
-        setTimeout(() => {
-            setLoading(false);
-            navigation.navigate('ConfirmMeal', {
-                image: imageUri,
-                prediction: { name: 'Pasta', calories: 450 } // Replace with real API call
+
+        const formData = new FormData();
+        formData.append("image", {
+            uri: imageUri,
+            name: "meal.jpg",
+            type: "image/jpeg",
+        });
+
+        try {
+            const response = await fetch("https://your-api.com/api/v1/photo_meals/analyze", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "multipart/form-data",
+                    Authorization: `Bearer ${authToken}`, // replace with your auth token logic
+                },
+                body: formData,
             });
-        }, 1000);
+
+            const result = await response.json();
+
+            setLoading(false);
+
+            if (!response.ok) {
+                return Alert.alert("Analysis failed", result.error || "Could not analyze the image.");
+            }
+
+            navigation.navigate("ConfirmMeal", {
+                image: imageUri,
+                result: result
+            });
+        } catch (err) {
+            console.error("Photo analysis error:", err);
+            setLoading(false);
+            Alert.alert("Error", "Something went wrong while analyzing the photo.");
+        }
     };
 
     return (

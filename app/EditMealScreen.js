@@ -1,101 +1,80 @@
-// app/EditMealScreen.js
 import React, { useState } from 'react';
 import {
-    View, Text, TextInput, TouchableOpacity, Alert,
-    StyleSheet, ActivityIndicator
+    View,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    StyleSheet,
+    Alert,
+    ScrollView
 } from 'react-native';
-import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import AppBackground from './components/AppBackground';
 import { useTheme } from './contexts/ThemeContext';
 
-const API_URL = 'http://192.168.0.127:3000';
-
 export default function EditMealScreen({ route, navigation }) {
     const { meal } = route.params;
-    const [name, setName] = useState(meal.name);
-    const [calories, setCalories] = useState(String(meal.calories));
-    const [loading, setLoading] = useState(false);
     const { dyslexiaMode } = useTheme();
     const fontFamily = dyslexiaMode ? 'OpenDyslexic' : 'System';
 
-    const handleUpdate = async () => {
-        setLoading(true);
-        const token = await AsyncStorage.getItem('authToken');
+    const [form, setForm] = useState({
+        name: meal.name,
+        calories: String(meal.calories),
+        protein: String(meal.protein),
+        carbs: String(meal.carbs),
+        fat: String(meal.fat),
+        sugar: String(meal.sugar),
+        salt: String(meal.salt)
+    });
 
-        try {
-            await axios.patch(`${API_URL}/api/v1/meals/${meal.id}`, {
-                name,
-                calories: parseInt(calories, 10)
-            }, {
-                headers: { Authorization: token }
-            });
-
-            Alert.alert('✅ Meal updated');
-            navigation.goBack();
-        } catch (err) {
-            console.error(err);
-            Alert.alert('Error', 'Could not update meal.');
-        } finally {
-            setLoading(false);
-        }
+    const handleChange = (key, value) => {
+        setForm((prev) => ({ ...prev, [key]: value }));
     };
 
-    const handleDelete = async () => {
-        const token = await AsyncStorage.getItem('authToken');
+    const handleSave = async () => {
+        try {
+            const res = await fetch(`https://your-api.com/api/v1/meals/${meal.id}`, {
+                method: 'PUT',
+                headers: {
+                    Authorization: `Bearer ${authToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(form)
+            });
 
-        Alert.alert('Delete Meal?', 'This cannot be undone.', [
-            { text: 'Cancel', style: 'cancel' },
-            {
-                text: 'Delete',
-                style: 'destructive',
-                onPress: async () => {
-                    try {
-                        await axios.delete(`${API_URL}/api/v1/meals/${meal.id}`, {
-                            headers: { Authorization: token }
-                        });
-                        Alert.alert('🗑️ Meal deleted');
-                        navigation.goBack();
-                    } catch (err) {
-                        console.error(err);
-                        Alert.alert('Error', 'Could not delete meal.');
-                    }
-                }
+            const json = await res.json();
+
+            if (res.ok) {
+                Alert.alert('Saved', 'Meal updated successfully');
+                navigation.goBack();
+            } else {
+                Alert.alert('Error', json.error || 'Update failed');
             }
-        ]);
+        } catch (err) {
+            console.error(err);
+            Alert.alert('Error', 'Something went wrong.');
+        }
     };
 
     return (
         <AppBackground>
-            <View style={styles.container}>
+            <ScrollView contentContainerStyle={styles.container}>
                 <Text style={[styles.title, { fontFamily }]}>Edit Meal</Text>
 
-                <TextInput
-                    style={styles.input}
-                    placeholder="Meal name"
-                    placeholderTextColor="#666"
-                    value={name}
-                    onChangeText={setName}
-                />
-                <TextInput
-                    style={styles.input}
-                    placeholder="Calories"
-                    placeholderTextColor="#666"
-                    keyboardType="numeric"
-                    value={calories}
-                    onChangeText={setCalories}
-                />
+                {Object.keys(form).map((key) => (
+                    <TextInput
+                        key={key}
+                        placeholder={key.charAt(0).toUpperCase() + key.slice(1)}
+                        style={[styles.input, { fontFamily }]}
+                        keyboardType={key === 'name' ? 'default' : 'numeric'}
+                        value={form[key]}
+                        onChangeText={(text) => handleChange(key, text)}
+                    />
+                ))}
 
-                <TouchableOpacity style={styles.button} onPress={handleUpdate} disabled={loading}>
-                    <Text style={styles.buttonText}>Save Changes</Text>
+                <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+                    <Text style={[styles.buttonText, { fontFamily }]}>Save Changes</Text>
                 </TouchableOpacity>
-
-                <TouchableOpacity style={styles.deleteButton} onPress={handleDelete} disabled={loading}>
-                    <Text style={styles.deleteText}>Delete Meal</Text>
-                </TouchableOpacity>
-
-                {loading && <ActivityIndicator size="large" style={{ marginTop: 20 }} />}
-            </View>
+            </ScrollView>
         </AppBackground>
     );
 }
@@ -103,45 +82,34 @@ export default function EditMealScreen({ route, navigation }) {
 const styles = StyleSheet.create({
     container: {
         padding: 24,
-        flex: 1,
+        alignItems: 'center',
         justifyContent: 'center'
     },
     title: {
-        fontSize: 26,
+        fontSize: 24,
         fontWeight: 'bold',
-        marginBottom: 24,
         color: '#fff',
-        textAlign: 'center'
+        marginBottom: 24
     },
     input: {
-        borderWidth: 1,
-        borderColor: '#ccc',
+        width: '100%',
+        backgroundColor: '#fff',
+        borderRadius: 10,
+        padding: 12,
+        marginBottom: 12,
+        fontSize: 16
+    },
+    saveButton: {
         backgroundColor: '#fff',
         padding: 14,
         borderRadius: 10,
-        marginBottom: 16
-    },
-    button: {
-        backgroundColor: '#2a9d8f',
-        paddingVertical: 14,
-        borderRadius: 10,
-        alignItems: 'center',
-        marginBottom: 12
-    },
-    buttonText: {
-        color: '#fff',
-        fontWeight: '600',
-        fontSize: 16
-    },
-    deleteButton: {
-        backgroundColor: '#d9534f',
-        paddingVertical: 14,
-        borderRadius: 10,
+        marginTop: 20,
+        width: '100%',
         alignItems: 'center'
     },
-    deleteText: {
-        color: '#fff',
-        fontWeight: '600',
-        fontSize: 16
+    buttonText: {
+        color: '#333',
+        fontSize: 16,
+        fontWeight: 'bold'
     }
 });

@@ -3,141 +3,74 @@ import {
     View,
     Text,
     TextInput,
-    Button,
     StyleSheet,
-    Alert,
-    ScrollView,
     TouchableOpacity,
-    Modal,
-    FlatList
+    Alert,
+    ScrollView
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
 import AppBackground from './components/AppBackground';
 import { useTheme } from './contexts/ThemeContext';
 
-const API_URL = 'http://192.168.0.127:3000';
-
-const options = {
-    gender: ['Male', 'Female', 'Other'],
-    activity: ['Sedentary', 'Light', 'Moderate', 'Active'],
-    goal: ['Lose', 'Maintain', 'Gain']
-};
-
 export default function ProfileSetupScreen({ navigation }) {
-    const [age, setAge] = useState('');
-    const [height, setHeight] = useState('');
-    const [weight, setWeight] = useState('');
-    const [gender, setGender] = useState('');
-    const [activityLevel, setActivityLevel] = useState('');
-    const [goal, setGoal] = useState('');
-
-    const [modalVisible, setModalVisible] = useState(false);
-    const [modalType, setModalType] = useState('');
-
     const { dyslexiaMode } = useTheme();
     const fontFamily = dyslexiaMode ? 'OpenDyslexic' : 'System';
 
-    const handleOpenModal = (type) => {
-        setModalType(type);
-        setModalVisible(true);
-    };
+    const [form, setForm] = useState({
+        username: '',
+        age: '',
+        weight: '',
+        gender: '',
+        activity_level: ''
+    });
 
-    const handleSelect = (value) => {
-        if (modalType === 'gender') setGender(value.toLowerCase());
-        if (modalType === 'activity') setActivityLevel(value.toLowerCase());
-        if (modalType === 'goal') setGoal(value.toLowerCase());
-        setModalVisible(false);
+    const handleChange = (key, value) => {
+        setForm((prev) => ({ ...prev, [key]: value }));
     };
 
     const handleSubmit = async () => {
-        if (!age || !height || !weight || !gender || !activityLevel || !goal) {
-            return Alert.alert('Missing fields', 'Please complete all fields.');
-        }
-
-        const token = await AsyncStorage.getItem('authToken');
         try {
-            await axios.put(`${API_URL}/api/v1/me`, {
-                age, height, weight, gender, activity_level: activityLevel, goal
-            }, {
-                headers: { Authorization: token }
+            const res = await fetch('https://your-api.com/api/v1/me', {
+                method: 'PUT',
+                headers: {
+                    Authorization: `Bearer ${authToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(form)
             });
 
-            Alert.alert('✅ Profile saved');
-            navigation.navigate('Dashboard');
+            const json = await res.json();
+
+            if (res.ok) {
+                Alert.alert("Profile set up", "You're ready to go!");
+                navigation.navigate("Dashboard");
+            } else {
+                Alert.alert("Error", json.error || "Setup failed.");
+            }
         } catch (err) {
             console.error(err);
-            Alert.alert('Error', 'Could not save profile.');
+            Alert.alert("Error", "Something went wrong.");
         }
     };
 
     return (
         <AppBackground>
-            <>
-                <ScrollView contentContainerStyle={styles.container}>
-                    <Text style={[styles.title, { fontFamily }]}>Set Up Your Profile</Text>
+            <ScrollView contentContainerStyle={styles.container}>
+                <Text style={[styles.title, { fontFamily }]}>Set Up Your Profile</Text>
 
+                {["username", "age", "weight", "gender", "activity_level"].map((key) => (
                     <TextInput
-                        placeholder="Age"
-                        placeholderTextColor="#666"
-                        keyboardType="numeric"
+                        key={key}
+                        placeholder={key.replace('_', ' ').toUpperCase()}
                         style={[styles.input, { fontFamily }]}
-                        value={age}
-                        onChangeText={setAge}
+                        value={form[key]}
+                        onChangeText={(text) => handleChange(key, text)}
                     />
-                    <TextInput
-                        placeholder="Height (cm)"
-                        placeholderTextColor="#666"
-                        keyboardType="numeric"
-                        style={[styles.input, { fontFamily }]}
-                        value={height}
-                        onChangeText={setHeight}
-                    />
-                    <TextInput
-                        placeholder="Weight (kg)"
-                        placeholderTextColor="#666"
-                        keyboardType="numeric"
-                        style={[styles.input, { fontFamily }]}
-                        value={weight}
-                        onChangeText={setWeight}
-                    />
+                ))}
 
-                    <TouchableOpacity onPress={() => handleOpenModal('gender')} style={styles.dropdown}>
-                        <Text style={[styles.dropdownText, { fontFamily }]}>
-                            {gender ? gender : 'Select gender'}
-                        </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => handleOpenModal('activity')} style={styles.dropdown}>
-                        <Text style={[styles.dropdownText, { fontFamily }]}>
-                            {activityLevel ? activityLevel : 'Select activity level'}
-                        </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => handleOpenModal('goal')} style={styles.dropdown}>
-                        <Text style={[styles.dropdownText, { fontFamily }]}>
-                            {goal ? goal : 'Select goal'}
-                        </Text>
-                    </TouchableOpacity>
-
-                    <Button title="Save Profile" onPress={handleSubmit} />
-                </ScrollView>
-
-                <Modal visible={modalVisible} transparent animationType="slide">
-                    <View style={styles.modalContainer}>
-                        <View style={styles.modalContent}>
-                            <FlatList
-                                data={options[modalType]}
-                                keyExtractor={(item) => item}
-                                renderItem={({ item }) => (
-                                    <TouchableOpacity onPress={() => handleSelect(item)}>
-                                        <Text style={[styles.modalItem, { fontFamily }]}>{item}</Text>
-                                    </TouchableOpacity>
-                                )}
-                            />
-                            <Button title="Cancel" onPress={() => setModalVisible(false)} />
-                        </View>
-                    </View>
-                </Modal>
-            </>
+                <TouchableOpacity style={styles.button} onPress={handleSubmit}>
+                    <Text style={[styles.buttonText, { fontFamily }]}>Continue</Text>
+                </TouchableOpacity>
+            </ScrollView>
         </AppBackground>
     );
 }
@@ -145,48 +78,33 @@ export default function ProfileSetupScreen({ navigation }) {
 const styles = StyleSheet.create({
     container: {
         padding: 24,
-        flexGrow: 1
+        justifyContent: 'center',
+        alignItems: 'center'
     },
     title: {
         fontSize: 24,
+        color: '#fff',
         fontWeight: 'bold',
-        marginBottom: 20
+        marginBottom: 24
     },
     input: {
-        borderWidth: 1,
-        borderColor: '#ccc',
-        padding: 14,
-        borderRadius: 10,
-        marginBottom: 12,
-        fontSize: 16
-    },
-    dropdown: {
-        borderWidth: 1,
-        borderColor: '#ccc',
-        padding: 14,
-        borderRadius: 10,
-        marginBottom: 12,
-        backgroundColor: '#f9f9f9'
-    },
-    dropdownText: {
-        fontSize: 16,
-        color: '#333'
-    },
-    modalContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        backgroundColor: '#000000aa'
-    },
-    modalContent: {
+        width: '100%',
         backgroundColor: '#fff',
-        marginHorizontal: 30,
+        padding: 12,
         borderRadius: 10,
-        padding: 20
+        marginBottom: 12
     },
-    modalItem: {
-        fontSize: 18,
-        paddingVertical: 12,
-        borderBottomWidth: 1,
-        borderColor: '#eee'
+    button: {
+        backgroundColor: '#fff',
+        padding: 14,
+        borderRadius: 10,
+        marginTop: 20,
+        width: '100%',
+        alignItems: 'center'
+    },
+    buttonText: {
+        color: '#333',
+        fontSize: 16,
+        fontWeight: 'bold'
     }
 });

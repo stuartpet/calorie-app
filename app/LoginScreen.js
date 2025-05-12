@@ -1,75 +1,78 @@
 import React, { useState } from 'react';
 import {
-    View, Text, TextInput, TouchableOpacity,
-    Alert, StyleSheet
+    View,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    StyleSheet,
+    Alert
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
 import AppBackground from './components/AppBackground';
-
-const API_URL = 'http://192.168.0.127:3000';
+import { useTheme } from './contexts/ThemeContext';
 
 export default function LoginScreen({ navigation }) {
+    const { dyslexiaMode } = useTheme();
+    const fontFamily = dyslexiaMode ? 'OpenDyslexic' : 'System';
+
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
 
     const handleLogin = async () => {
-        try {
-            const response = await axios.post(`${API_URL}/api/v1/login`, { email, password });
-            const token = response.data.auth_token;
-            await AsyncStorage.setItem('authToken', token);
+        if (!email || !password) return Alert.alert("Missing info", "Please enter email and password");
 
-            const profileRes = await axios.get(`${API_URL}/api/v1/me`, {
-                headers: { Authorization: token }
+        try {
+            const res = await fetch('https://your-api.com/api/v1/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
             });
 
-            const { age, height, weight, gender, activity_level, goal } = profileRes.data;
-            const isProfileComplete = [age, height, weight, gender, activity_level, goal].every(Boolean);
+            const json = await res.json();
 
-            navigation.navigate(isProfileComplete ? 'Dashboard' : 'ProfileSetup');
-        } catch (error) {
-            console.error(error);
-            Alert.alert('Login failed', 'Check your email or password.');
+            if (res.ok && json.auth_token) {
+                // TODO: store auth_token and redirect
+                Alert.alert("Success", "You are now logged in.");
+                navigation.navigate("Dashboard");
+            } else {
+                Alert.alert("Login failed", json.error || "Invalid credentials");
+            }
+        } catch (err) {
+            console.error(err);
+            Alert.alert("Error", "Something went wrong.");
         }
     };
 
     return (
         <AppBackground>
             <View style={styles.container}>
-                <Text style={styles.title}>Welcome Back 👋</Text>
-                <Text style={styles.subtitle}>Log in to track your meals</Text>
+                <Text style={[styles.title, { fontFamily }]}>Log In</Text>
 
-                <View style={styles.card}>
-                    <TextInput
-                        placeholder="Email"
-                        placeholderTextColor="#666"
-                        autoCapitalize="none"
-                        keyboardType="email-address"
-                        style={styles.input}
-                        value={email}
-                        onChangeText={setEmail}
-                    />
+                <TextInput
+                    placeholder="Email"
+                    style={[styles.input, { fontFamily }]}
+                    value={email}
+                    onChangeText={setEmail}
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                />
 
-                    <TextInput
-                        placeholder="Password"
-                        placeholderTextColor="#666"
-                        secureTextEntry
-                        style={styles.input}
-                        value={password}
-                        onChangeText={setPassword}
-                    />
+                <TextInput
+                    placeholder="Password"
+                    style={[styles.input, { fontFamily }]}
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry
+                />
 
-                    <TouchableOpacity style={styles.button} onPress={handleLogin}>
-                        <Text style={styles.buttonText}>Log In</Text>
-                    </TouchableOpacity>
-                </View>
+                <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
+                    <Text style={[styles.buttonText, { fontFamily }]}>Sign In</Text>
+                </TouchableOpacity>
 
-                <Text style={styles.footerText}>
-                    Don't have an account?{' '}
-                    <Text style={styles.link} onPress={() => navigation.navigate('Signup')}>
-                        Sign Up
+                <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
+                    <Text style={[styles.linkText, { fontFamily }]}>
+                        Don’t have an account? Sign up
                     </Text>
-                </Text>
+                </TouchableOpacity>
             </View>
         </AppBackground>
     );
@@ -77,56 +80,41 @@ export default function LoginScreen({ navigation }) {
 
 const styles = StyleSheet.create({
     container: {
+        padding: 24,
         flex: 1,
-        paddingBottom: 24,
         justifyContent: 'center'
     },
     title: {
         fontSize: 28,
         fontWeight: 'bold',
         color: '#fff',
-        marginBottom: 8,
-        textAlign: 'center'
-    },
-    subtitle: {
-        fontSize: 16,
-        color: '#ddd',
         textAlign: 'center',
-        marginBottom: 24
-    },
-    card: {
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        padding: 20,
-        borderRadius: 16
+        marginBottom: 32
     },
     input: {
-        borderWidth: 1,
-        borderColor: '#ccc',
         backgroundColor: '#fff',
         borderRadius: 10,
         padding: 14,
         marginBottom: 16,
         fontSize: 16
     },
-    button: {
-        backgroundColor: '#2a9d8f',
-        paddingVertical: 14,
+    loginButton: {
+        backgroundColor: '#fff',
+        padding: 14,
         borderRadius: 10,
-        alignItems: 'center'
+        alignItems: 'center',
+        marginTop: 10
     },
     buttonText: {
-        color: '#fff',
-        fontWeight: '600',
-        fontSize: 16
+        color: '#333',
+        fontSize: 16,
+        fontWeight: 'bold'
     },
-    footerText: {
-        marginTop: 24,
+    linkText: {
+        color: '#ccc',
         fontSize: 14,
         textAlign: 'center',
-        color: '#eee'
-    },
-    link: {
-        color: '#f4a261',
-        fontWeight: '600'
+        marginTop: 20,
+        textDecorationLine: 'underline'
     }
 });

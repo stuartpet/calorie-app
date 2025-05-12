@@ -1,51 +1,47 @@
-// app/MealLogScreen.js
 import React, { useState, useEffect } from 'react';
 import {
-    View, Text, TextInput, FlatList, StyleSheet, Alert, TouchableOpacity
+    View,
+    Text,
+    FlatList,
+    StyleSheet,
+    TouchableOpacity,
+    Image,
+    Alert
 } from 'react-native';
-import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import AppBackground from './components/AppBackground';
 import { useTheme } from './contexts/ThemeContext';
-
-const API_URL = 'http://192.168.0.127:3000';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function MealLogScreen({ navigation }) {
-    const [meals, setMeals] = useState([]);
-    const [name, setName] = useState('');
-    const [calories, setCalories] = useState('');
     const { dyslexiaMode } = useTheme();
     const fontFamily = dyslexiaMode ? 'OpenDyslexic' : 'System';
 
+    const [meals, setMeals] = useState([]);
+
     const fetchMeals = async () => {
-        const token = await AsyncStorage.getItem('authToken');
         try {
-            const response = await axios.get(`${API_URL}/api/v1/meals/today`, {
-                headers: { Authorization: token }
+            const res = await fetch("https://your-api.com/api/v1/meals/today", {
+                headers: { Authorization: `Bearer ${authToken}` }
             });
-            setMeals(response.data);
-        } catch (error) {
-            console.error(error);
-            Alert.alert('Error', 'Failed to load meals.');
+            const json = await res.json();
+            if (res.ok) setMeals(json);
+            else Alert.alert("Error", json.error || "Could not load meals.");
+        } catch (err) {
+            console.error(err);
+            Alert.alert("Error", "Failed to fetch meals.");
         }
     };
 
-    const addMeal = async () => {
-        if (!name) return Alert.alert('Missing', 'Please enter a meal name.');
-        const token = await AsyncStorage.getItem('authToken');
+    const handleDelete = async (id) => {
         try {
-            await axios.post(`${API_URL}/api/v1/meals`, {
-                name,
-                calories: parseInt(calories, 10) || 0
-            }, {
-                headers: { Authorization: token }
+            await fetch(`https://your-api.com/api/v1/meals/${id}`, {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${authToken}` }
             });
-            setName('');
-            setCalories('');
-            fetchMeals();
-        } catch (error) {
-            console.error(error);
-            Alert.alert('Error', 'Failed to log meal.');
+            setMeals(meals.filter((m) => m.id !== id));
+        } catch (err) {
+            console.error(err);
+            Alert.alert("Error", "Could not delete meal.");
         }
     };
 
@@ -53,121 +49,81 @@ export default function MealLogScreen({ navigation }) {
         fetchMeals();
     }, []);
 
-    const totalCalories = meals.reduce((sum, m) => sum + (m.calories || 0), 0);
+    const renderMeal = ({ item }) => (
+        <View style={styles.mealItem}>
+            <Image source={{ uri: item.food_item.supabase_url }} style={styles.mealImage} />
+            <View style={styles.mealText}>
+                <Text style={[styles.mealName, { fontFamily }]}>{item.name}</Text>
+                <Text style={[styles.mealMacros, { fontFamily }]}>
+                    {item.calories} kcal • P:{item.protein}g C:{item.carbs}g F:{item.fat}g
+                </Text>
+            </View>
+            <View style={styles.actions}>
+                <TouchableOpacity onPress={() => navigation.navigate('EditMeal', { meal: item })}>
+                    <Ionicons name="pencil" size={22} color="#fff" />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => handleDelete(item.id)} style={{ marginLeft: 12 }}>
+                    <Ionicons name="trash" size={22} color="#fff" />
+                </TouchableOpacity>
+            </View>
+        </View>
+    );
 
     return (
         <AppBackground>
             <View style={styles.container}>
-                <Text style={[styles.title, { fontFamily }]}>Log a Meal</Text>
-
-                <View style={styles.card}>
-                    <TextInput
-                        placeholder="Meal name"
-                        placeholderTextColor="#888"
-                        style={[styles.input, { fontFamily }]}
-                        value={name}
-                        onChangeText={setName}
-                    />
-                    <TextInput
-                        placeholder="Calories (optional)"
-                        placeholderTextColor="#888"
-                        keyboardType="numeric"
-                        style={[styles.input, { fontFamily }]}
-                        value={calories}
-                        onChangeText={setCalories}
-                    />
-                    <TouchableOpacity style={styles.button} onPress={addMeal}>
-                        <Text style={styles.buttonText}>Add Meal</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity style={styles.secondaryButton} onPress={() => navigation.navigate('PhotoMeal')}>
-                        <Text style={styles.secondaryButtonText}>Snap a Photo</Text>
-                    </TouchableOpacity>
-                </View>
-
-                <Text style={[styles.subtitle, { fontFamily }]}>Today's Meals</Text>
+                <Text style={[styles.title, { fontFamily }]}>Meal Log</Text>
 
                 <FlatList
                     data={meals}
                     keyExtractor={(item) => item.id.toString()}
-                    renderItem={({ item }) => (
-                        <View style={styles.mealItem}>
-                            <Text style={[styles.mealText, { fontFamily }]}>{item.name}</Text>
-                            <Text style={[styles.caloriesText, { fontFamily }]}>{item.calories} kcal</Text>
-                        </View>
-                    )}
-                    ListEmptyComponent={<Text style={{ textAlign: 'center', color: '#ccc' }}>No meals logged yet.</Text>}
+                    renderItem={renderMeal}
+                    style={{ width: '100%' }}
                 />
-
-                <Text style={[styles.total, { fontFamily }]}>Total Today: {totalCalories} kcal</Text>
             </View>
         </AppBackground>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, paddingBottom: 24 },
-    title: { fontSize: 26, fontWeight: 'bold', color: '#fff', marginBottom: 16 },
-    card: {
-        backgroundColor: 'rgba(255,255,255,0.95)',
-        borderRadius: 16,
-        padding: 20,
-        marginBottom: 24
+    container: {
+        padding: 24,
+        flex: 1
     },
-    input: {
-        borderWidth: 1,
-        borderColor: '#ddd',
-        backgroundColor: '#fff',
-        padding: 14,
-        borderRadius: 10,
-        fontSize: 16,
-        marginBottom: 12
-    },
-    button: {
-        backgroundColor: '#2a9d8f',
-        paddingVertical: 14,
-        borderRadius: 10,
-        alignItems: 'center',
-        marginBottom: 10
-    },
-    buttonText: {
+    title: {
+        fontSize: 24,
         color: '#fff',
-        fontWeight: '600',
-        fontSize: 16
-    },
-    secondaryButton: {
-        borderColor: '#2a9d8f',
-        borderWidth: 1.5,
-        paddingVertical: 12,
-        borderRadius: 10,
-        alignItems: 'center'
-    },
-    secondaryButtonText: {
-        color: '#2a9d8f',
-        fontWeight: '600',
-        fontSize: 16
-    },
-    subtitle: {
-        fontSize: 18,
-        color: '#fff',
-        marginBottom: 12,
-        fontWeight: '600'
+        fontWeight: 'bold',
+        marginBottom: 20
     },
     mealItem: {
-        backgroundColor: '#fff',
-        padding: 14,
-        borderRadius: 10,
-        marginBottom: 10,
         flexDirection: 'row',
-        justifyContent: 'space-between'
+        alignItems: 'center',
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        borderRadius: 12,
+        padding: 10,
+        marginVertical: 8
     },
-    mealText: { fontSize: 16 },
-    caloriesText: { fontSize: 16, fontWeight: '600', color: '#e76f51' },
-    total: {
-        fontSize: 18,
-        fontWeight: 'bold',
+    mealImage: {
+        width: 60,
+        height: 60,
+        borderRadius: 8,
+        marginRight: 12
+    },
+    mealText: {
+        flex: 1
+    },
+    mealName: {
+        fontSize: 16,
         color: '#fff',
-        textAlign: 'center',
-        marginTop: 20
+        fontWeight: 'bold'
+    },
+    mealMacros: {
+        fontSize: 14,
+        color: '#fff',
+        marginTop: 4
+    },
+    actions: {
+        flexDirection: 'row'
     }
 });
